@@ -1188,7 +1188,8 @@ class Stream(_IIO_Object):
         self._buffer = buffer
 
     def __del__(self):
-        _stream_destroy(self._stream)
+        if self._stream is not None:
+            _stream_destroy(self._stream)
 
     def __iter__(self):
         return self
@@ -1263,6 +1264,11 @@ class _DeviceOrTrigger(_IIO_Object):
         label_raw = _d_get_label(self._device)
         self._label = label_raw.decode("utf-8", errors="replace") if label_raw is not None else None
 
+        self._channels = sorted([
+            Channel(self, _get_channel(self._device, x))
+            for x in range(0, _channels_count(self._device))
+        ], key=lambda c: c.id)
+
     def reg_write(self, reg, value):
         """
         Set a value to one register of this device.
@@ -1335,10 +1341,7 @@ class _DeviceOrTrigger(_IIO_Object):
         "List of debug attributes for this IIO device.\n\ttype=dict of iio.Attr",
     )
     channels = property(
-        lambda self: sorted([
-            Channel(self, _get_channel(self._device, x))
-            for x in range(0, _channels_count(self._device))
-        ], key=lambda c: c.id),
+        lambda self: self._channels,
         None,
         None,
         "List of channels available with this IIO device.\n\ttype=list of iio.Channel objects",
